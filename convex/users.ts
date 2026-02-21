@@ -9,26 +9,9 @@ import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Scrypt } from "lucia";
-
-async function requireAuth(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
-  const user = await ctx.db.get(userId);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  return user;
-}
-
-async function requireOwner(ctx: any) {
-  const user = await requireAuth(ctx);
-  if (user.role !== "owner") {
-    throw new Error("Unauthorized: owner role required");
-  }
-  return user;
-}
+import { requireAuth, requireOwner } from "./lib/auth";
+import { rateLimiter } from "./lib/rateLimits";
+import { validatePassword } from "./lib/passwords";
 
 export const current = query({
   args: {},
@@ -57,7 +40,7 @@ export const updateProfile = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const { user } = await requireAuth(ctx);
     await ctx.db.patch(user._id, { name: args.name });
   },
 });
@@ -82,7 +65,7 @@ export const remove = mutation({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const owner = await requireOwner(ctx);
+    const { user: owner } = await requireOwner(ctx);
     if (owner._id === args.userId) {
       throw new Error("Cannot delete your own account");
     }
@@ -106,14 +89,6 @@ export const setMustChangePassword = mutation({
       throw new Error("User not found");
     }
     await ctx.db.patch(args.userId, { mustChangePassword: args.mustChangePassword });
-  },
-});
-
-export const clearMustChangePassword = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const user = await requireAuth(ctx);
-    await ctx.db.patch(user._id, { mustChangePassword: false });
   },
 });
 
@@ -163,14 +138,18 @@ export const changePassword = action({
     newPassword: v.string(),
   },
   handler: async (ctx, args) => {
-    if (args.newPassword.length < 8) {
-      throw new ConvexError("Password must be at least 8 characters");
-    }
+    validatePassword(args.newPassword);
 
     const user = await ctx.runQuery(internal.users.currentInternal);
     if (!user || !user.email) {
       throw new ConvexError("Not authenticated");
     }
+
+    // Rate limit password change attempts per user
+    await rateLimiter.limit(ctx, "changePassword", {
+      key: user._id,
+      throws: true,
+    });
 
     const account = await ctx.runQuery(internal.users.getPasswordAccount, {
       email: user.email,

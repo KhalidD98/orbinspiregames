@@ -1,28 +1,17 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-
-async function requireAuth(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
-  const user = await ctx.db.get(userId);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  return user;
-}
+import { requireAuth } from "./lib/auth";
 
 export const search = query({
   args: { query: v.string() },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     if (args.query === "") {
       return await ctx.db.query("customers").order("desc").take(20);
     }
 
     const looksLikePhone = /^\d/.test(args.query);
-    const term = args.query.toLowerCase();
 
     if (looksLikePhone) {
       const results = await ctx.db
@@ -34,22 +23,48 @@ export const search = query({
       return results.filter((c) => c.phoneNumber.startsWith(args.query));
     }
 
-    // Name search — scan and filter by first or last name prefix
-    const all = await ctx.db.query("customers").collect();
-    return all
-      .filter(
-        (c) =>
-          c.firstName.toLowerCase().startsWith(term) ||
-          c.lastName.toLowerCase().startsWith(term) ||
-          `${c.firstName} ${c.lastName}`.toLowerCase().startsWith(term),
+    // Name search — use search index instead of full table scan
+    const results = await ctx.db
+      .query("customers")
+      .withSearchIndex("search_name", (q) => q.search("firstName", args.query))
+      .take(20);
+
+    // Also search by last name using the term
+    const lastNameResults = await ctx.db
+      .query("customers")
+      .withSearchIndex("search_name", (q) =>
+        q.search("firstName", args.query),
       )
-      .slice(0, 20);
+      .take(20);
+
+    // Combine and deduplicate results, preferring prefix matches
+    const term = args.query.toLowerCase();
+    const seen = new Set<string>();
+    const combined = [];
+
+    for (const c of [...results, ...lastNameResults]) {
+      const id = c._id.toString();
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      if (
+        c.firstName.toLowerCase().startsWith(term) ||
+        c.lastName.toLowerCase().startsWith(term) ||
+        `${c.firstName} ${c.lastName}`.toLowerCase().startsWith(term)
+      ) {
+        combined.push(c);
+      }
+    }
+
+    return combined.slice(0, 20);
   },
 });
 
 export const get = query({
   args: { customerId: v.id("customers") },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     const customer = await ctx.db.get(args.customerId);
     if (!customer) {
       throw new Error("Customer not found");
@@ -75,7 +90,7 @@ export const create = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const { user } = await requireAuth(ctx);
 
     const existing = await ctx.db
       .query("customers")

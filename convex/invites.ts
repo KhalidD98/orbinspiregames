@@ -1,26 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-
-async function requireAuth(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
-  const user = await ctx.db.get(userId);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  return user;
-}
-
-async function requireOwner(ctx: any) {
-  const user = await requireAuth(ctx);
-  if (user.role !== "owner") {
-    throw new Error("Unauthorized: owner role required");
-  }
-  return user;
-}
+import { requireAuth, requireOwner } from "./lib/auth";
 
 export const create = mutation({
   args: {
@@ -29,7 +10,7 @@ export const create = mutation({
     role: v.union(v.literal("owner"), v.literal("manager"), v.literal("employee")),
   },
   handler: async (ctx, args) => {
-    const owner = await requireOwner(ctx);
+    const { user: owner } = await requireOwner(ctx);
 
     const existing = await ctx.db
       .query("invites")
@@ -87,7 +68,7 @@ export const remove = mutation({
 export const claimPendingInvite = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const { user } = await requireAuth(ctx);
     if (!user.email) {
       return;
     }

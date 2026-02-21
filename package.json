@@ -10,8 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@auth/core": "^0.37.4",
-    "@convex-dev/auth": "^0.0.90",
+    "@auth/core": "0.37.4",
+    "@convex-dev/auth": "0.0.90",
+    "@convex-dev/rate-limiter": "^0.3.2",
     "@tailwindcss/vite": "^4.2.0",
     "@tanstack/react-router": "^1.161.3",
     "class-variance-authority": "^0.7.1",

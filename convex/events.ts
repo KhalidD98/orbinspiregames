@@ -1,25 +1,8 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { requireAuth, requireRole } from "./lib/auth";
 
-async function requireAuth(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
-  const user = await ctx.db.get(userId);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  return user;
-}
-
-function requireRole(user: any, allowedRoles: string[]) {
-  if (!user.role || !allowedRoles.includes(user.role)) {
-    throw new Error("Insufficient permissions");
-  }
-}
-
+// Public queries — intentionally unauthenticated for landing page
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -74,7 +57,7 @@ export const create = mutation({
     maxPlayers: v.optional(v.float64()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const { user } = await requireAuth(ctx);
     requireRole(user, ["manager", "owner"]);
 
     return await ctx.db.insert("events", {
@@ -105,7 +88,7 @@ export const update = mutation({
     maxPlayers: v.optional(v.float64()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const { user } = await requireAuth(ctx);
     requireRole(user, ["manager", "owner"]);
 
     const existing = await ctx.db.get(args.id);
@@ -130,7 +113,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("events") },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const { user } = await requireAuth(ctx);
     requireRole(user, ["manager", "owner"]);
 
     const existing = await ctx.db.get(args.id);

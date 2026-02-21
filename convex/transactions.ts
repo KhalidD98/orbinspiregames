@@ -1,32 +1,14 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-
-async function requireAuth(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
-  const user = await ctx.db.get(userId);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  return { userId, user };
-}
-
-function requireRole(user: any, allowedRoles: string[]) {
-  if (!user.role || !allowedRoles.includes(user.role)) {
-    throw new Error(
-      `Access denied. Required role: ${allowedRoles.join(" or ")}`,
-    );
-  }
-}
+import { requireAuth, requireRole } from "./lib/auth";
 
 export const listByCustomer = query({
   args: {
     customerId: v.id("customers"),
   },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     const transactions = await ctx.db
       .query("transactions")
       .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
