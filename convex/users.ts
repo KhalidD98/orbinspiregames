@@ -1,6 +1,14 @@
-import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import {
+  query,
+  mutation,
+  action,
+  internalQuery,
+  internalMutation,
+} from "./_generated/server";
+import { internal } from "./_generated/api";
+import { v, ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { Scrypt } from "lucia";
 
 async function requireAuth(ctx: any) {
   const userId = await getAuthUserId(ctx);
@@ -36,7 +44,10 @@ export const current = query({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireOwner(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "owner") return [];
     return await ctx.db.query("users").collect();
   },
 });
@@ -103,5 +114,87 @@ export const clearMustChangePassword = mutation({
   handler: async (ctx) => {
     const user = await requireAuth(ctx);
     await ctx.db.patch(user._id, { mustChangePassword: false });
+  },
+});
+
+// --- Password change ---
+
+export const currentInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    return await ctx.db.get(userId);
+  },
+});
+
+export const getPasswordAccount = internalQuery({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q: any) =>
+        q.eq("provider", "password").eq("providerAccountId", args.email),
+      )
+      .unique();
+  },
+});
+
+export const updatePasswordHash = internalMutation({
+  args: { accountId: v.id("authAccounts"), hash: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.accountId, { secret: args.hash });
+  },
+});
+
+export const clearMustChangePasswordInternal = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (user?.mustChangePassword) {
+      await ctx.db.patch(args.userId, { mustChangePassword: false });
+    }
+  },
+});
+
+export const changePassword = action({
+  args: {
+    currentPassword: v.string(),
+    newPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (args.newPassword.length < 8) {
+      throw new ConvexError("Password must be at least 8 characters");
+    }
+
+    const user = await ctx.runQuery(internal.users.currentInternal);
+    if (!user || !user.email) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    const account = await ctx.runQuery(internal.users.getPasswordAccount, {
+      email: user.email,
+    });
+    if (!account || !account.secret) {
+      throw new ConvexError("No password account found");
+    }
+
+    const scrypt = new Scrypt();
+    const isValid = await scrypt.verify(account.secret, args.currentPassword);
+    if (!isValid) {
+      throw new ConvexError("Current password is incorrect");
+    }
+
+    const newHash = await scrypt.hash(args.newPassword);
+    await ctx.runMutation(internal.users.updatePasswordHash, {
+      accountId: account._id,
+      hash: newHash,
+    });
+
+    if (user.mustChangePassword) {
+      await ctx.runMutation(internal.users.clearMustChangePasswordInternal, {
+        userId: user._id,
+      });
+    }
   },
 });

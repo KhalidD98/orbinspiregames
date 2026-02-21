@@ -12,6 +12,9 @@ import {
   Menu,
   X,
   Upload,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -20,6 +23,10 @@ const navItems = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/credit", label: "Store Credit", icon: CreditCard },
   { to: "/admin/events", label: "Events", icon: Calendar },
+] as const;
+
+const managerNavItems = [
+  { to: "/admin/hours", label: "Store Hours", icon: Clock },
 ] as const;
 
 const ownerNavItems = [
@@ -32,15 +39,34 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuthActions();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const isOwner = user?.role === "owner";
 
   return (
     <div className="flex min-h-screen bg-muted/30">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 flex-col border-r bg-card md:flex">
+      <aside
+        className={`hidden flex-col border-r bg-card md:flex transition-all duration-200 ${
+          sidebarOpen ? "w-64" : "w-16"
+        }`}
+      >
         <div className="flex h-14 items-center border-b px-4">
-          <span className="text-lg font-semibold">OrbinSpire Admin</span>
+          {sidebarOpen && (
+            <span className="flex-1 text-lg font-semibold">OrbinSpire Admin</span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={sidebarOpen ? "" : "mx-auto"}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose className="h-4 w-4" />
+            ) : (
+              <PanelLeftOpen className="h-4 w-4" />
+            )}
+          </Button>
         </div>
         <nav className="flex-1 space-y-1 p-3">
           {navItems.map((item) => {
@@ -53,17 +79,42 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                title={sidebarOpen ? undefined : item.label}
+                className={`flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  sidebarOpen ? "gap-3" : "justify-center"
+                } ${
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
+                <Icon className="h-4 w-4 shrink-0" />
+                {sidebarOpen && item.label}
               </Link>
             );
           })}
+          {(isOwner || user?.role === "manager") &&
+            managerNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  title={sidebarOpen ? undefined : item.label}
+                  className={`flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                    sidebarOpen ? "gap-3" : "justify-center"
+                  } ${
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {sidebarOpen && item.label}
+                </Link>
+              );
+            })}
           {isOwner &&
             ownerNavItems.map((item) => {
               const Icon = item.icon;
@@ -72,14 +123,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  title={sidebarOpen ? undefined : item.label}
+                  className={`flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                    sidebarOpen ? "gap-3" : "justify-center"
+                  } ${
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {sidebarOpen && item.label}
                 </Link>
               );
             })}
@@ -87,17 +141,23 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <div className="border-t p-3 space-y-1">
           <Link
             to="/admin/profile"
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            title={sidebarOpen ? undefined : "Profile"}
+            className={`flex items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
+              sidebarOpen ? "gap-3" : "justify-center"
+            }`}
           >
-            <User className="h-4 w-4" />
-            {user?.name || user?.email || "Profile"}
+            <User className="h-4 w-4 shrink-0" />
+            {sidebarOpen && (user?.name || user?.email || "Profile")}
           </Link>
           <button
             onClick={() => signOut()}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            title={sidebarOpen ? undefined : "Sign out"}
+            className={`flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive ${
+              sidebarOpen ? "gap-3" : "justify-center"
+            }`}
           >
-            <LogOut className="h-4 w-4" />
-            Sign out
+            <LogOut className="h-4 w-4 shrink-0" />
+            {sidebarOpen && "Sign out"}
           </button>
         </div>
       </aside>
@@ -144,6 +204,21 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     </Link>
                   );
                 })}
+                {(isOwner || user?.role === "manager") &&
+                  managerNavItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent"
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 {isOwner &&
                   ownerNavItems.map((item) => {
                     const Icon = item.icon;

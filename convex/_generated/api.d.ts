@@ -13,6 +13,8 @@ import type * as customers from "../customers.js";
 import type * as events from "../events.js";
 import type * as http from "../http.js";
 import type * as import_ from "../import.js";
+import type * as invites from "../invites.js";
+import type * as storeHours from "../storeHours.js";
 import type * as transactions from "../transactions.js";
 import type * as users from "../users.js";
 
@@ -28,6 +30,8 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   http: typeof http;
   import: typeof import_;
+  invites: typeof invites;
+  storeHours: typeof storeHours;
   transactions: typeof transactions;
   users: typeof users;
 }>;

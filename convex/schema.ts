@@ -45,6 +45,15 @@ export default defineSchema({
     createdAt: v.float64(),
   }).index("by_customer", ["customerId"]),
 
+  invites: defineTable({
+    email: v.string(),
+    name: v.string(),
+    role: v.union(v.literal("owner"), v.literal("manager"), v.literal("employee")),
+    createdBy: v.id("users"),
+    createdAt: v.float64(),
+    claimed: v.boolean(),
+  }).index("by_email", ["email"]),
+
   events: defineTable({
     title: v.string(),
     description: v.string(),
@@ -57,4 +66,10 @@ export default defineSchema({
     createdBy: v.id("users"),
     createdAt: v.float64(),
   }).index("by_start_date", ["startDate"]),
+
+  storeHours: defineTable({
+    days: v.string(),
+    hours: v.string(),
+    sortOrder: v.float64(),
+  }).index("by_sort_order", ["sortOrder"]),
 });

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ function SignInPage() {
   const { signIn } = useAuthActions();
   const user = useQuery(api.users.current);
   const navigate = useNavigate();
+  const claimInvite = useMutation(api.invites.claimPendingInvite);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,16 +32,23 @@ function SignInPage() {
 
   useEffect(() => {
     if (user) {
-      navigate({ to: "/admin" });
+      claimInvite().then(() => {
+        navigate({ to: "/admin" });
+      });
     }
-  }, [user, navigate]);
+  }, [user, navigate, claimInvite]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await signIn("password", { email, password, flow });
+      await signIn("password", {
+        email,
+        password,
+        flow,
+        ...(flow === "signUp" ? { name } : {}),
+      });
     } catch {
       setError(
         flow === "signIn"
@@ -64,6 +73,18 @@ function SignInPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {flow === "signUp" && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

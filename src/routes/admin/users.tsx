@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import { UserPlus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -26,6 +25,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/admin/users")({
   component: UsersPage,
@@ -42,13 +50,22 @@ const roleBadgeVariant: Record<Role, "default" | "secondary" | "outline"> = {
 function UsersPage() {
   const currentUser = useQuery(api.users.current);
   const users = useQuery(api.users.list);
+  const pendingInvites = useQuery(api.invites.listPending);
   const setRole = useMutation(api.users.setRole);
   const setMustChangePassword = useMutation(api.users.setMustChangePassword);
   const removeUser = useMutation(api.users.remove);
+  const createInvite = useMutation(api.invites.create);
+  const removeInvite = useMutation(api.invites.remove);
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [updatingPasswordId, setUpdatingPasswordId] = useState<string | null>(null);
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState<Role>("employee");
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   if (currentUser === undefined) {
     return (
@@ -112,28 +129,94 @@ function UsersPage() {
     }
   };
 
+  const handleCreateInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteLoading(true);
+    try {
+      await createInvite({ email: inviteEmail, name: inviteName, role: inviteRole });
+      toast.success("Invite created — tell them to sign up at the admin signin page");
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteName("");
+      setInviteRole("employee");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create invite");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    try {
+      await removeInvite({ inviteId: inviteId as any });
+      toast.success("Invite cancelled");
+    } catch {
+      toast.error("Failed to cancel invite");
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">User Management</h1>
-        <p className="text-muted-foreground">
-          Manage staff accounts, roles, and passwords
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Instructions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            To add a new staff member, have them sign up via the admin sign-in page.
-            Once their account appears here, assign them the appropriate role. New
-            accounts without a role will not have access to admin features until a
-            role is assigned.
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">User Management</h1>
+          <p className="text-muted-foreground">
+            Manage staff accounts, roles, and passwords
           </p>
-        </CardContent>
-      </Card>
+        </div>
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Invite Staff
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Invite Staff Member</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateInvite} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="invite-email">Email</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="staff@example.com"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-name">Name</Label>
+                <Input
+                  id="invite-name"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  placeholder="Staff member name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-role">Role</Label>
+                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="owner">Owner</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="employee">Employee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" className="w-full" disabled={inviteLoading}>
+                {inviteLoading ? "Creating..." : "Create Invite"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {users === undefined ? (
         <div className="flex items-center justify-center py-8">
@@ -146,16 +229,16 @@ function UsersPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="py-0 gap-0">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Password</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="w-[140px]">Role</TableHead>
+                  <TableHead className="w-[130px]">Password</TableHead>
+                  <TableHead className="w-[120px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -258,6 +341,48 @@ function UsersPage() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {pendingInvites && pendingInvites.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold">Pending Invites</h2>
+          <Card className="py-0 gap-0">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingInvites.map((invite: any) => (
+                    <TableRow key={invite._id}>
+                      <TableCell className="font-medium">{invite.name}</TableCell>
+                      <TableCell>{invite.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={roleBadgeVariant[invite.role as Role] || "outline"}>
+                          {invite.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCancelInvite(invite._id)}
+                        >
+                          Cancel
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

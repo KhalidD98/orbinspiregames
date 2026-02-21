@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation } from "convex/react";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery, useMutation, useAction } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,7 @@ export const Route = createFileRoute("/admin/profile")({
 function ProfilePage() {
   const user = useQuery(api.users.current);
   const updateProfile = useMutation(api.users.updateProfile);
-  const clearMustChangePassword = useMutation(
-    api.users.clearMustChangePassword,
-  );
-  const { signIn } = useAuthActions();
+  const changePasswordAction = useAction(api.users.changePassword);
 
   const [name, setName] = useState("");
   const [nameInitialized, setNameInitialized] = useState(false);
@@ -59,6 +56,10 @@ function ProfilePage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError("");
+    if (!currentPassword) {
+      setPasswordError("Please enter your current password");
+      return;
+    }
     if (newPassword.length < 8) {
       setPasswordError("Password must be at least 8 characters");
       return;
@@ -69,38 +70,16 @@ function ProfilePage() {
     }
     setChangingPassword(true);
     try {
-      // Sign in with new password to change it
-      // Convex Auth Password provider handles password reset via re-signUp
-      await signIn("password", {
-        email: user.email!,
-        password: newPassword,
-        flow: "reset-verification" as any,
-      });
-      // If mustChangePassword, clear it
-      if (user.mustChangePassword) {
-        await clearMustChangePassword();
-      }
+      await changePasswordAction({ currentPassword, newPassword });
       toast.success("Password changed successfully");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch {
-      // Fallback: try signUp flow to overwrite
-      try {
-        await signIn("password", {
-          email: user.email!,
-          password: newPassword,
-          flow: "signUp",
-        });
-        if (user.mustChangePassword) {
-          await clearMustChangePassword();
-        }
-        toast.success("Password changed successfully");
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      } catch {
-        setPasswordError("Failed to change password. Please try again.");
+    } catch (err) {
+      if (err instanceof ConvexError) {
+        setPasswordError(err.data as string);
+      } else {
+        setPasswordError("Failed to change password");
       }
     } finally {
       setChangingPassword(false);

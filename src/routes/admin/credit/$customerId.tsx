@@ -99,6 +99,10 @@ function CustomerDetailPage() {
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Pagination
+  const [page, setPage] = useState(0);
+  const pageSize = 10;
+
   // Edit form state
   const [editAmount, setEditAmount] = useState("");
   const [editType, setEditType] = useState<TransactionType>("buy_in");
@@ -317,7 +321,7 @@ function CustomerDetailPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       {/* Back link */}
       <Link
         to="/admin/credit"
@@ -508,75 +512,104 @@ function CustomerDetailPage() {
               No transactions yet.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Notes</TableHead>
-                  {isManagerOrOwner && <TableHead className="w-24">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((tx) => (
-                  <TableRow key={tx._id}>
-                    <TableCell>{formatDate(tx.createdAt)}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`font-medium ${
-                          tx.amount >= 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {tx.amount >= 0 ? "+" : ""}
-                        {formatCurrency(tx.amount)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {TRANSACTION_TYPE_LABELS[
-                          tx.type as TransactionType
-                        ] ?? tx.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {tx.description || "-"}
-                    </TableCell>
-                    <TableCell>{tx.employeeName}</TableCell>
-                    <TableCell className="max-w-[150px] truncate">
-                      {tx.notes || "-"}
-                    </TableCell>
-                    {isManagerOrOwner && (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Notes</TableHead>
+                    {isManagerOrOwner && <TableHead className="w-24">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions
+                    .slice(page * pageSize, (page + 1) * pageSize)
+                    .map((tx) => (
+                    <TableRow key={tx._id}>
+                      <TableCell>{formatDate(tx.createdAt)}</TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(tx)}
-                          >
-                            Edit
-                          </Button>
-                          {isOwner && (
+                        <span
+                          className={`font-medium ${
+                            tx.amount >= 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {tx.amount >= 0 ? "+" : ""}
+                          {formatCurrency(tx.amount)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {TRANSACTION_TYPE_LABELS[
+                            tx.type as TransactionType
+                          ] ?? tx.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {tx.description || "-"}
+                      </TableCell>
+                      <TableCell>{tx.employeeName}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">
+                        {tx.notes || "-"}
+                      </TableCell>
+                      {isManagerOrOwner && (
+                        <TableCell>
+                          <div className="flex gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() =>
-                                handleDeleteTransaction(tx._id)
-                              }
+                              onClick={() => openEditDialog(tx)}
                             >
-                              Delete
+                              Edit
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                            {isOwner && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() =>
+                                  handleDeleteTransaction(tx._id)
+                                }
+                              >
+                                Delete
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {transactions.length > pageSize && (
+                <div className="flex items-center justify-between pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, transactions.length)} of {transactions.length}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 0}
+                      onClick={() => setPage(page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={(page + 1) * pageSize >= transactions.length}
+                      onClick={() => setPage(page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

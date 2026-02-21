@@ -140,7 +140,7 @@ function CreditPage() {
       <Input
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Search by phone number..."
+        placeholder="Search by name or phone number..."
         className="text-lg"
       />
 
@@ -160,7 +160,7 @@ function CreditPage() {
           customers.map((customer) => (
             <Card
               key={customer._id}
-              className="cursor-pointer transition-colors hover:bg-muted/50"
+              className="py-0 gap-0 cursor-pointer transition-colors hover:bg-muted/50"
               onClick={() =>
                 navigate({
                   to: "/admin/credit/$customerId",

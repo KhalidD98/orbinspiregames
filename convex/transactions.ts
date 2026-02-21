@@ -38,7 +38,7 @@ export const listByCustomer = query({
         const employee = await ctx.db.get(transaction.employeeId);
         return {
           ...transaction,
-          employeeName: employee?.name ?? "Unknown",
+          employeeName: employee?.name || employee?.email || "Unknown",
         };
       }),
     );

@@ -16,6 +16,7 @@ import { Route as AdminUsersRouteImport } from "./routes/admin/users"
 import { Route as AdminSigninRouteImport } from "./routes/admin/signin"
 import { Route as AdminProfileRouteImport } from "./routes/admin/profile"
 import { Route as AdminImportRouteImport } from "./routes/admin/import"
+import { Route as AdminHoursRouteImport } from "./routes/admin/hours"
 import { Route as AdminEventsRouteImport } from "./routes/admin/events"
 import { Route as AdminCreditIndexRouteImport } from "./routes/admin/credit/index"
 import { Route as AdminCreditCustomerIdRouteImport } from "./routes/admin/credit/$customerId"
@@ -55,6 +56,11 @@ const AdminImportRoute = AdminImportRouteImport.update({
   path: "/import",
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminHoursRoute = AdminHoursRouteImport.update({
+  id: "/hours",
+  path: "/hours",
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminEventsRoute = AdminEventsRouteImport.update({
   id: "/events",
   path: "/events",
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
   "/admin": typeof AdminRouteRouteWithChildren
   "/admin/events": typeof AdminEventsRoute
+  "/admin/hours": typeof AdminHoursRoute
   "/admin/import": typeof AdminImportRoute
   "/admin/profile": typeof AdminProfileRoute
   "/admin/signin": typeof AdminSigninRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
   "/admin/events": typeof AdminEventsRoute
+  "/admin/hours": typeof AdminHoursRoute
   "/admin/import": typeof AdminImportRoute
   "/admin/profile": typeof AdminProfileRoute
   "/admin/signin": typeof AdminSigninRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   "/": typeof IndexRoute
   "/admin": typeof AdminRouteRouteWithChildren
   "/admin/events": typeof AdminEventsRoute
+  "/admin/hours": typeof AdminHoursRoute
   "/admin/import": typeof AdminImportRoute
   "/admin/profile": typeof AdminProfileRoute
   "/admin/signin": typeof AdminSigninRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | "/"
     | "/admin"
     | "/admin/events"
+    | "/admin/hours"
     | "/admin/import"
     | "/admin/profile"
     | "/admin/signin"
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   to:
     | "/"
     | "/admin/events"
+    | "/admin/hours"
     | "/admin/import"
     | "/admin/profile"
     | "/admin/signin"
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | "/"
     | "/admin"
     | "/admin/events"
+    | "/admin/hours"
     | "/admin/import"
     | "/admin/profile"
     | "/admin/signin"
@@ -201,6 +213,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminImportRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    "/admin/hours": {
+      id: "/admin/hours"
+      path: "/hours"
+      fullPath: "/admin/hours"
+      preLoaderRoute: typeof AdminHoursRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     "/admin/events": {
       id: "/admin/events"
       path: "/events"
@@ -227,6 +246,7 @@ declare module "@tanstack/react-router" {
 
 interface AdminRouteRouteChildren {
   AdminEventsRoute: typeof AdminEventsRoute
+  AdminHoursRoute: typeof AdminHoursRoute
   AdminImportRoute: typeof AdminImportRoute
   AdminProfileRoute: typeof AdminProfileRoute
   AdminSigninRoute: typeof AdminSigninRoute
@@ -238,6 +258,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminEventsRoute: AdminEventsRoute,
+  AdminHoursRoute: AdminHoursRoute,
   AdminImportRoute: AdminImportRoute,
   AdminProfileRoute: AdminProfileRoute,
   AdminSigninRoute: AdminSigninRoute,

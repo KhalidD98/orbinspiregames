@@ -21,13 +21,29 @@ export const search = query({
       return await ctx.db.query("customers").order("desc").take(20);
     }
 
-    const results = await ctx.db
-      .query("customers")
-      .withIndex("by_phone")
-      .filter((q) => q.gte(q.field("phoneNumber"), args.query))
-      .take(20);
+    const looksLikePhone = /^\d/.test(args.query);
+    const term = args.query.toLowerCase();
 
-    return results.filter((c) => c.phoneNumber.startsWith(args.query));
+    if (looksLikePhone) {
+      const results = await ctx.db
+        .query("customers")
+        .withIndex("by_phone")
+        .filter((q) => q.gte(q.field("phoneNumber"), args.query))
+        .take(20);
+
+      return results.filter((c) => c.phoneNumber.startsWith(args.query));
+    }
+
+    // Name search — scan and filter by first or last name prefix
+    const all = await ctx.db.query("customers").collect();
+    return all
+      .filter(
+        (c) =>
+          c.firstName.toLowerCase().startsWith(term) ||
+          c.lastName.toLowerCase().startsWith(term) ||
+          `${c.firstName} ${c.lastName}`.toLowerCase().startsWith(term),
+      )
+      .slice(0, 20);
   },
 });
 

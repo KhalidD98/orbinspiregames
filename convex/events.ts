@@ -40,6 +40,21 @@ export const listUpcoming = query({
   },
 });
 
+export const listByRange = query({
+  args: {
+    start: v.float64(),
+    end: v.float64(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("events")
+      .withIndex("by_start_date", (q) =>
+        q.gte("startDate", args.start).lte("startDate", args.end),
+      )
+      .collect();
+  },
+});
+
 export const get = query({
   args: { id: v.id("events") },
   handler: async (ctx, args) => {
