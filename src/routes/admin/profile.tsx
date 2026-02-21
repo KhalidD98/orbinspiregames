@@ -60,8 +60,8 @@ function ProfilePage() {
       setPasswordError("Please enter your current password");
       return;
     }
-    if (newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters");
+    if (newPassword.length < 12) {
+      setPasswordError("Password must be at least 12 characters");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -155,7 +155,7 @@ function ProfilePage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New password (min 8 characters)"
+                placeholder="New password (min 12 characters)"
                 required
               />
             </div>
