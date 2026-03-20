@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Clock,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -27,6 +28,7 @@ const navItems = [
 
 const managerNavItems = [
   { to: "/admin/hours", label: "Store Hours", icon: Clock },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 
 const ownerNavItems = [
