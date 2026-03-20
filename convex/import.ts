@@ -18,6 +18,14 @@ export const importCSVData = mutation({
   handler: async (ctx, args) => {
     const { userId } = await requireOwner(ctx);
 
+    const migrationType = await ctx.db
+      .query("creditTypes")
+      .withIndex("by_slug", (q) => q.eq("slug", "migration"))
+      .first();
+    if (!migrationType) {
+      throw new Error("Migration credit type not found. Please seed credit types first.");
+    }
+
     const results = {
       customersCreated: 0,
       customersMatched: 0,
@@ -54,7 +62,7 @@ export const importCSVData = mutation({
           await ctx.db.insert("transactions", {
             customerId,
             amount: row.balance,
-            type: "migration",
+            typeId: migrationType._id,
             description:
               row.description || "Imported from Google Sheets",
             employeeId: userId,
