@@ -15,18 +15,34 @@ export const listByCustomer = query({
       .order("desc")
       .collect();
 
-    // Fetch all credit types once and build lookup map
+    // Fetch all credit types once and build lookup maps
     const allCreditTypes = await ctx.db.query("creditTypes").collect();
-    const typeIdToName = new Map(allCreditTypes.map((ct) => [ct._id, ct.name]));
+    const typeIdToName: Record<string, string> = {};
+    const slugToId: Record<string, string> = {};
+    for (const ct of allCreditTypes) {
+      typeIdToName[ct._id] = ct.name;
+      slugToId[ct.slug] = ct._id;
+    }
 
     const transactionsWithEmployee = await Promise.all(
       transactions.map(async (transaction) => {
         const employee = await ctx.db.get(transaction.employeeId);
 
+        // Resolve typeId: use existing typeId, or fall back to slug lookup for unmigrated
+        let resolvedTypeId = transaction.typeId;
+        if (!resolvedTypeId && transaction.type && slugToId[transaction.type]) {
+          resolvedTypeId = slugToId[transaction.type] as any;
+        }
+
+        const typeName = resolvedTypeId
+          ? typeIdToName[resolvedTypeId] ?? transaction.type ?? "Unknown"
+          : transaction.type ?? "Unknown";
+
         return {
           ...transaction,
           employeeName: employee?.name || employee?.email || "Unknown",
-          typeName: typeIdToName.get(transaction.typeId) ?? "Unknown",
+          typeName,
+          typeId: resolvedTypeId ?? transaction.typeId,
         };
       }),
     );
