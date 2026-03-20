@@ -29,21 +29,36 @@ export default defineSchema({
     .searchIndex("search_phone", { searchField: "phoneNumber" })
     .searchIndex("search_name", { searchField: "firstName" }),
 
+  creditTypes: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    isActive: v.boolean(),
+    sortOrder: v.float64(),
+    createdBy: v.id("users"),
+    createdAt: v.float64(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_sort_order", ["sortOrder"]),
+
   transactions: defineTable({
     customerId: v.id("customers"),
     amount: v.float64(),
-    type: v.union(
+    // Phase 1: both fields optional during migration
+    type: v.optional(v.union(
       v.literal("buy_in"),
       v.literal("purchase"),
       v.literal("adjustment"),
       v.literal("correction"),
       v.literal("migration"),
-    ),
+    )),
+    typeId: v.optional(v.id("creditTypes")),
     description: v.optional(v.string()),
     notes: v.optional(v.string()),
     employeeId: v.id("users"),
     createdAt: v.float64(),
-  }).index("by_customer", ["customerId"]),
+  })
+    .index("by_customer", ["customerId"])
+    .index("by_typeId", ["typeId"]),
 
   invites: defineTable({
     email: v.string(),
