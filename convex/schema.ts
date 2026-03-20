@@ -43,15 +43,7 @@ export default defineSchema({
   transactions: defineTable({
     customerId: v.id("customers"),
     amount: v.float64(),
-    // Phase 1: both fields optional during migration
-    type: v.optional(v.union(
-      v.literal("buy_in"),
-      v.literal("purchase"),
-      v.literal("adjustment"),
-      v.literal("correction"),
-      v.literal("migration"),
-    )),
-    typeId: v.optional(v.id("creditTypes")),
+    typeId: v.id("creditTypes"),
     description: v.optional(v.string()),
     notes: v.optional(v.string()),
     employeeId: v.id("users"),

@@ -173,30 +173,9 @@ export const seed = mutation({
 
 export const migrateBatch = internalMutation({
   args: {},
-  handler: async (ctx) => {
-    // Build slug -> ID map
-    const allTypes = await ctx.db.query("creditTypes").collect();
-    const slugToId: Record<string, string> = {};
-    for (const t of allTypes) {
-      slugToId[t.slug] = t._id;
-    }
-
-    // Find transactions without typeId
-    const unmigrated = await ctx.db
-      .query("transactions")
-      .filter((q) => q.eq(q.field("typeId"), undefined))
-      .take(100);
-
-    for (const tx of unmigrated) {
-      if (tx.type && slugToId[tx.type]) {
-        await ctx.db.patch(tx._id, {
-          typeId: slugToId[tx.type] as any,
-          type: undefined,
-        });
-      }
-    }
-
-    return unmigrated.length;
+  handler: async (_ctx) => {
+    // Phase 2: migration complete — all transactions have typeId
+    return 0;
   },
 });
 
