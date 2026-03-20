@@ -28,7 +28,6 @@ const navItems = [
 
 const managerNavItems = [
   { to: "/admin/hours", label: "Store Hours", icon: Clock },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 
 const ownerNavItems = [
@@ -141,6 +140,22 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             })}
         </nav>
         <div className="border-t p-3 space-y-1">
+          {(isOwner || user?.role === "manager") && (
+            <Link
+              to="/admin/settings"
+              title={sidebarOpen ? undefined : "Settings"}
+              className={`flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                sidebarOpen ? "gap-3" : "justify-center"
+              } ${
+                location.pathname.startsWith("/admin/settings")
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              {sidebarOpen && "Settings"}
+            </Link>
+          )}
           <Link
             to="/admin/profile"
             title={sidebarOpen ? undefined : "Profile"}
@@ -238,6 +253,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   })}
               </nav>
               <div className="mt-4 border-t pt-3 space-y-1">
+                {(isOwner || user?.role === "manager") && (
+                  <Link
+                    to="/admin/settings"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Link>
+                )}
                 <Link
                   to="/admin/profile"
                   onClick={() => setMobileOpen(false)}
