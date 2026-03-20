@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,20 +41,6 @@ export const Route = createFileRoute("/admin/credit/$customerId")({
   component: CustomerDetailPage,
 });
 
-type TransactionType =
-  | "buy_in"
-  | "purchase"
-  | "adjustment"
-  | "correction"
-  | "migration";
-
-const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
-  buy_in: "Buy-in",
-  purchase: "Purchase",
-  adjustment: "Adjustment",
-  correction: "Correction",
-  migration: "Migration",
-};
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -82,6 +68,8 @@ function CustomerDetailPage() {
     customerId: customerId as any,
   });
   const currentUser = useQuery(api.users.current);
+  const activeTypes = useQuery(api.creditTypes.listActive);
+  const allTypes = useQuery(api.creditTypes.list);
 
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
@@ -95,7 +83,7 @@ function CustomerDetailPage() {
 
   // Transaction form state
   const [amount, setAmount] = useState("");
-  const [type, setType] = useState<TransactionType>("buy_in");
+  const [typeId, setTypeId] = useState("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -105,9 +93,15 @@ function CustomerDetailPage() {
 
   // Edit form state
   const [editAmount, setEditAmount] = useState("");
-  const [editType, setEditType] = useState<TransactionType>("buy_in");
+  const [editTypeId, setEditTypeId] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editNotes, setEditNotes] = useState("");
+
+  useEffect(() => {
+    if (activeTypes && activeTypes.length > 0 && !typeId) {
+      setTypeId(activeTypes[0]._id);
+    }
+  }, [activeTypes, typeId]);
 
   const isManagerOrOwner =
     currentUser?.role === "manager" || currentUser?.role === "owner";
@@ -115,7 +109,7 @@ function CustomerDetailPage() {
 
   const resetForm = () => {
     setAmount("");
-    setType("buy_in");
+    setTypeId(activeTypes?.[0]?._id ?? "");
     setDescription("");
     setNotes("");
   };
@@ -132,7 +126,7 @@ function CustomerDetailPage() {
       await createTransaction({
         customerId: customerId as any,
         amount: parsedAmount,
-        type,
+        typeId: typeId as any,
         description: description || undefined,
         notes: notes || undefined,
       });
@@ -160,7 +154,7 @@ function CustomerDetailPage() {
       await createTransaction({
         customerId: customerId as any,
         amount: -parsedAmount,
-        type,
+        typeId: typeId as any,
         description: description || undefined,
         notes: notes || undefined,
       });
@@ -179,7 +173,7 @@ function CustomerDetailPage() {
   const openEditDialog = (tx: any) => {
     setEditingTransaction(tx);
     setEditAmount(Math.abs(tx.amount).toString());
-    setEditType(tx.type);
+    setEditTypeId(tx.typeId);
     setEditDescription(tx.description || "");
     setEditNotes(tx.notes || "");
     setEditDialogOpen(true);
@@ -201,7 +195,7 @@ function CustomerDetailPage() {
       await updateTransaction({
         id: editingTransaction._id,
         amount: finalAmount,
-        type: editType,
+        typeId: editTypeId as any,
         description: editDescription || undefined,
         notes: editNotes || undefined,
       });
@@ -231,7 +225,7 @@ function CustomerDetailPage() {
     }
   };
 
-  if (customer === undefined || transactions === undefined) {
+  if (customer === undefined || transactions === undefined || activeTypes === undefined || allTypes === undefined) {
     return (
       <div className="py-8 text-center text-muted-foreground">Loading...</div>
     );
@@ -257,68 +251,74 @@ function CustomerDetailPage() {
     isEdit: boolean,
     currentAmount: string,
     setCurrentAmount: (v: string) => void,
-    currentType: TransactionType,
-    setCurrentType: (v: TransactionType) => void,
+    currentTypeId: string,
+    setCurrentTypeId: (v: string) => void,
     currentDescription: string,
     setCurrentDescription: (v: string) => void,
     currentNotes: string,
     setCurrentNotes: (v: string) => void,
-  ) => (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-amount" : "amount"}>Amount *</Label>
-        <Input
-          id={isEdit ? "edit-amount" : "amount"}
-          type="number"
-          step="0.01"
-          min="0.01"
-          value={currentAmount}
-          onChange={(e) => setCurrentAmount(e.target.value)}
-          placeholder="0.00"
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-type" : "type"}>Type</Label>
-        <Select
-          value={currentType}
-          onValueChange={(v) => setCurrentType(v as TransactionType)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="buy_in">Buy-in</SelectItem>
-            <SelectItem value="purchase">Purchase</SelectItem>
-            <SelectItem value="adjustment">Adjustment</SelectItem>
-            <SelectItem value="correction">Correction</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-description" : "description"}>
-          Description
-        </Label>
-        <Textarea
-          id={isEdit ? "edit-description" : "description"}
-          value={currentDescription}
-          onChange={(e) => setCurrentDescription(e.target.value)}
-          placeholder="Optional description"
-          rows={2}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-notes" : "notes"}>Notes</Label>
-        <Textarea
-          id={isEdit ? "edit-notes" : "notes"}
-          value={currentNotes}
-          onChange={(e) => setCurrentNotes(e.target.value)}
-          placeholder="Optional notes"
-          rows={2}
-        />
-      </div>
-    </>
-  );
+  ) => {
+    const typeOptions = isEdit ? allTypes ?? [] : activeTypes ?? [];
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor={isEdit ? "edit-amount" : "amount"}>Amount *</Label>
+          <Input
+            id={isEdit ? "edit-amount" : "amount"}
+            type="number"
+            step="0.01"
+            min="0.01"
+            value={currentAmount}
+            onChange={(e) => setCurrentAmount(e.target.value)}
+            placeholder="0.00"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={isEdit ? "edit-type" : "type"}>Type</Label>
+          <Select
+            value={currentTypeId}
+            onValueChange={(v) => setCurrentTypeId(v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              {typeOptions.map((t: any) => (
+                <SelectItem
+                  key={t._id}
+                  value={t._id}
+                  disabled={isEdit && !t.isActive && t._id !== currentTypeId}
+                >
+                  {t.name}{!t.isActive ? " (Disabled)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={isEdit ? "edit-description" : "description"}>Description</Label>
+          <Textarea
+            id={isEdit ? "edit-description" : "description"}
+            value={currentDescription}
+            onChange={(e) => setCurrentDescription(e.target.value)}
+            placeholder="Optional description"
+            rows={2}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={isEdit ? "edit-notes" : "notes"}>Notes</Label>
+          <Textarea
+            id={isEdit ? "edit-notes" : "notes"}
+            value={currentNotes}
+            onChange={(e) => setCurrentNotes(e.target.value)}
+            placeholder="Optional notes"
+            rows={2}
+          />
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -379,8 +379,8 @@ function CustomerDetailPage() {
                     false,
                     amount,
                     setAmount,
-                    type,
-                    setType,
+                    typeId,
+                    setTypeId,
                     description,
                     setDescription,
                     notes,
@@ -425,8 +425,8 @@ function CustomerDetailPage() {
                     false,
                     amount,
                     setAmount,
-                    type,
-                    setType,
+                    typeId,
+                    setTypeId,
                     description,
                     setDescription,
                     notes,
@@ -475,8 +475,8 @@ function CustomerDetailPage() {
               true,
               editAmount,
               setEditAmount,
-              editType,
-              setEditType,
+              editTypeId,
+              setEditTypeId,
               editDescription,
               setEditDescription,
               editNotes,
@@ -543,9 +543,7 @@ function CustomerDetailPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">
-                          {TRANSACTION_TYPE_LABELS[
-                            tx.type as TransactionType
-                          ] ?? tx.type}
+                          {tx.typeName ?? "Unknown"}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">
