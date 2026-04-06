@@ -4,6 +4,8 @@ I built this for a tabletop game shop in North Fort Worth. They needed something
 
 The project isn't active anymore and the shop stopped using it, but I'm keeping the repo up as a portfolio piece.
 
+I built this with [Claude Code](https://claude.ai/claude-code) as a coding partner. I handled the product decisions, design direction, and architecture calls while Claude helped me write the implementation, work through bugs, and iterate faster than I could have solo. The git history shows the back and forth pretty well if you're curious what that workflow looks like.
+
 ## How it works
 
 There's a public landing page with an events calendar, store hours, and logos for the game brands they carry. That's what customers see.
